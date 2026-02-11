@@ -27,10 +27,21 @@ export default function UploadPage() {
 
     try {
       const res = await fetch("/api/upload", { method: "POST", body: formData });
-      const data = await res.json();
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        setResults([{ file: "Upload", success: false, error: `Server error (${res.status}): ${text.substring(0, 200)}` }]);
+        return;
+      }
+      if (!res.ok && !data.results) {
+        setResults([{ file: "Upload", success: false, error: data.error || `Server error ${res.status}` }]);
+        return;
+      }
       setResults(data.results || []);
-    } catch {
-      setResults([{ file: "Upload", success: false, error: "Netwerkfout" }]);
+    } catch (err) {
+      setResults([{ file: "Upload", success: false, error: `Netwerkfout: ${err instanceof Error ? err.message : String(err)}` }]);
     } finally {
       setIsUploading(false);
     }
