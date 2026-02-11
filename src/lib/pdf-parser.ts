@@ -1,4 +1,6 @@
-import pdf from "pdf-parse";
+// Import directly from lib to avoid pdf-parse loading a test file on import
+// (causes ENOENT on Vercel serverless)
+import pdf from "pdf-parse/lib/pdf-parse.js";
 import { ParsedTransaction, FustItem } from "./types";
 
 const DUTCH_MONTHS: Record<string, string> = {
