@@ -4,6 +4,13 @@ import { db } from "@/lib/db";
 import { transactions, fustItems } from "@/lib/db/schema";
 import { parsePdf } from "@/lib/pdf-parser";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+export async function GET() {
+  return NextResponse.json({ status: "upload endpoint ready" });
+}
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
