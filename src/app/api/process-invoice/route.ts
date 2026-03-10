@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     const blob = await put(
       `invoices/${parsed.transactienummer}.pdf`,
       pdfBuffer,
-      { access: "public", contentType: "application/pdf" }
+      { access: "public", contentType: "application/pdf", allowOverwrite: true }
     );
 
     // Insert transaction into database
