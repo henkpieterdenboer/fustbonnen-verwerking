@@ -24,9 +24,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("PDF field type:", typeof base64Pdf, "length:", String(base64Pdf).length, "first 50 chars:", String(base64Pdf).substring(0, 50));
-    const pdfBuffer = Buffer.from(base64Pdf, "base64");
-    console.log("Buffer length:", pdfBuffer.length, "first 4 bytes:", pdfBuffer.subarray(0, 4).toString("hex"));
+    // Power Automate sends contentBytes which is already base64-encoded,
+    // and it arrives as a base64 string in JSON — so we may need to decode twice.
+    let pdfBuffer = Buffer.from(base64Pdf, "base64");
+    // Check if the result is still base64 (starts with "JVBE" = base64 for "%PDF")
+    // instead of actual PDF bytes (starts with "%PDF" = hex 25504446)
+    if (pdfBuffer.subarray(0, 4).toString("ascii") === "JVBE") {
+      pdfBuffer = Buffer.from(pdfBuffer.toString("ascii"), "base64");
+    }
     const parsed = await parsePdf(pdfBuffer);
 
     // Upload PDF to Vercel Blob
