@@ -24,7 +24,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log("PDF field type:", typeof base64Pdf, "length:", String(base64Pdf).length, "first 50 chars:", String(base64Pdf).substring(0, 50));
     const pdfBuffer = Buffer.from(base64Pdf, "base64");
+    console.log("Buffer length:", pdfBuffer.length, "first 4 bytes:", pdfBuffer.subarray(0, 4).toString("hex"));
     const parsed = await parsePdf(pdfBuffer);
 
     // Upload PDF to Vercel Blob
