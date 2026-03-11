@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { put } from "@vercel/blob";
 import { db } from "@/lib/db";
-import { transactions, fustItems } from "@/lib/db/schema";
+import { transactions, fustItems, rejectedTransactions } from "@/lib/db/schema";
 import { parsePdf } from "@/lib/pdf-parser";
 import { validateApiKey } from "@/lib/auth";
+import { eq } from "drizzle-orm";
 
 export async function POST(request: NextRequest) {
   if (!validateApiKey(request)) {
@@ -38,11 +39,42 @@ export async function POST(request: NextRequest) {
     pdfBuffer = pdfBuffer!;
     const parsed = await parsePdf(pdfBuffer);
 
+    // Check if transactienummer already exists
+    const existing = await db
+      .select({ id: transactions.id })
+      .from(transactions)
+      .where(eq(transactions.transactienummer, parsed.transactienummer))
+      .limit(1);
+
+    if (existing.length > 0) {
+      // Upload to separate rejected folder
+      const rejectedBlob = await put(
+        `rejected/${parsed.transactienummer}_${Date.now()}.pdf`,
+        pdfBuffer,
+        { access: "public", contentType: "application/pdf" }
+      );
+
+      // Log as rejected
+      await db.insert(rejectedTransactions).values({
+        transactienummer: parsed.transactienummer,
+        reason: "Duplicate transactienummer",
+        document_type: parsed.document_type,
+        pdf_url: rejectedBlob.url,
+      });
+
+      return NextResponse.json({
+        success: true,
+        duplicate: true,
+        transactienummer: parsed.transactienummer,
+        message: "Duplicate transactienummer — logged as rejected",
+      });
+    }
+
     // Upload PDF to Vercel Blob
     const blob = await put(
       `invoices/${parsed.transactienummer}.pdf`,
       pdfBuffer,
-      { access: "public", contentType: "application/pdf", allowOverwrite: true }
+      { access: "public", contentType: "application/pdf" }
     );
 
     // Insert transaction into database
@@ -91,18 +123,6 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error: unknown) {
-    // Duplicate transactienummer (Postgres unique violation)
-    // Return 200 with duplicate flag so Power Automate doesn't retry/hang
-    if (
-      error instanceof Error &&
-      "code" in error &&
-      (error as { code: string }).code === "23505"
-    ) {
-      return NextResponse.json(
-        { success: true, duplicate: true, error: "Duplicate transactienummer — already processed" },
-      );
-    }
-
     console.error("Error processing invoice:", error);
     return NextResponse.json(
       {

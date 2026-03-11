@@ -20,6 +20,15 @@ export const transactions = pgTable("transactions", {
   pdf_url: text("pdf_url"),
 });
 
+export const rejectedTransactions = pgTable("rejected_transactions", {
+  id: serial("id").primaryKey(),
+  transactienummer: varchar("transactienummer", { length: 20 }).notNull(),
+  reason: varchar("reason", { length: 100 }).notNull(),
+  document_type: varchar("document_type", { length: 30 }),
+  pdf_url: text("pdf_url"),
+  received_at: timestamp("received_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const fustItems = pgTable("fust_items", {
   id: serial("id").primaryKey(),
   transaction_id: integer("transaction_id")
