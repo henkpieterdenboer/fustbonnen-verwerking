@@ -24,23 +24,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Decode base64 — Power Automate may send double or triple encoded data.
+    // Decode base64 — Power Automate may send double-encoded data.
     // Keep decoding until we see the %PDF header (hex 25504446).
     let data: string | Buffer = base64Pdf;
     let pdfBuffer: Buffer;
     for (let attempt = 0; attempt < 4; attempt++) {
-      if (typeof data === "string") {
-        pdfBuffer = Buffer.from(data, "base64");
-      } else {
-        pdfBuffer = data;
-      }
-      const header = pdfBuffer.subarray(0, 4).toString("hex");
-      console.log(`Decode attempt ${attempt}: header=${header} (${pdfBuffer.subarray(0, 4).toString("ascii")}), bufLen=${pdfBuffer.length}`);
-      if (header === "25504446") {
-        // Found %PDF header
-        break;
-      }
-      // Try decoding the buffer as ascii text and then base64 again
+      pdfBuffer = typeof data === "string"
+        ? Buffer.from(data, "base64")
+        : data;
+      if (pdfBuffer.subarray(0, 4).toString("hex") === "25504446") break;
       data = pdfBuffer.toString("ascii");
     }
     pdfBuffer = pdfBuffer!;
@@ -100,14 +92,14 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: unknown) {
     // Duplicate transactienummer (Postgres unique violation)
+    // Return 200 with duplicate flag so Power Automate doesn't retry/hang
     if (
       error instanceof Error &&
       "code" in error &&
       (error as { code: string }).code === "23505"
     ) {
       return NextResponse.json(
-        { success: false, error: "Duplicate transactienummer" },
-        { status: 409 }
+        { success: true, duplicate: true, error: "Duplicate transactienummer — already processed" },
       );
     }
 
